@@ -1,0 +1,38 @@
+# Ver invariant_assessment/.github/workflows/deploy.yml -- mesmo padrão,
+# atualiza só o container `ingestion` na stack compartilhada
+# `invariant-next` (docker-compose.yml vive em invariant_api).
+name: deploy
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-invariant-ingestion
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy
+    runs-on: [self-hosted, vps-prod]
+    env:
+      SRC_DIR: /srv/projects/publicado/invariant_ingestion
+      STACK_DIR: /srv/projects/publicado/invariant_api
+    steps:
+      - name: Atualizar código
+        run: |
+          git config --global --add safe.directory "$SRC_DIR"
+          cd "$SRC_DIR"
+          git fetch origin main
+          git reset --hard origin/main
+
+      - name: Reconstruir e subir só este serviço
+        run: |
+          cd "$STACK_DIR"
+          docker compose up -d --build --wait --wait-timeout 180 ingestion
+
+      - name: Logs em caso de falha
+        if: failure()
+        run: |
+          cd "$STACK_DIR"
+          docker compose logs --tail=80 ingestion || true
