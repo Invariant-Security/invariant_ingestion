@@ -1,0 +1,23 @@
+# Pure Python -- sem Docker/Postgres. `-m "not integration"` deliberadamente
+# exclui os testes que batem em cisecurity.org de verdade (lentos e
+# suscetíveis a rate-limiting -- ver source.py's próprio comentário sobre
+# isso); rodam só sob demanda (`pytest -m integration`), não bloqueiam PR.
+name: ci
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: pytest tests/ -q -m "not integration"
