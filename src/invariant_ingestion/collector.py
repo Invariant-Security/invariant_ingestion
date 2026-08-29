@@ -4,15 +4,17 @@ computing their content hash.
 
 import hashlib
 import json
+import os
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-# .../invariant_ingestion/src/invariant_ingestion/collector.py -> repo root
-# is parents[2] here (was parents[3] in the monolith, one level shallower
-# -- src/invariant/collector/__init__.py's own subpackage nesting doesn't
-# exist in this repo's flat collector.py layout).
-DEFAULT_RAW_DIR = Path(__file__).resolve().parents[2] / "data" / "raw"
+# parents[2] only resolves to the repo root for an editable install (pip
+# install -e ., used in dev/CI) -- `pip install .` (the Dockerfile) copies
+# collector.py into site-packages, breaking that assumption (same issue as
+# invariant_api's storage/postgres.py _SQL_DIR). INVARIANT_INGESTION_RAW_DIR
+# overrides it for that case (set to /app/data/raw in the Dockerfile).
+DEFAULT_RAW_DIR = Path(os.environ.get("INVARIANT_INGESTION_RAW_DIR") or Path(__file__).resolve().parents[2] / "data" / "raw")
 
 
 def _cis_os_family(document: str) -> str | None:
