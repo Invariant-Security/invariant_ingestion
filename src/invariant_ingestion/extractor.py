@@ -132,12 +132,29 @@ def _find_headers(lines: list[str]) -> list[dict]:
         merged_text = match.group("rest")
         scored_match = _SCORED_SUFFIX_RE.search(merged_text)
         end_line = i
+        hit_another_id = False
         while not scored_match and end_line < i + _MAX_TITLE_WRAP_LINES and end_line + 1 < len(lines):
+            candidate_line = lines[end_line + 1].strip()
+            if _ID_RE.match(candidate_line):
+                # `match` (at line i) was a false positive -- typically a
+                # section-level heading ("5.4.2 Configure root and system
+                # accounts and environment") that has no (Scored) suffix of
+                # its own and sits right before the real recommendation,
+                # sometimes with a page header/footer line interleaved by
+                # pypdf across a page break. Without this check, the wrap
+                # loop below would keep folding lines in (including that
+                # noise) until it reached the REAL next header's own
+                # "(Scored)" suffix and anchor, misattributing that whole
+                # recommendation's body to this section heading's id/title
+                # instead -- and skipping the real header's own line
+                # entirely, so it never got its own entry at all.
+                hit_another_id = True
+                break
             end_line += 1
-            merged_text += " " + lines[end_line].strip()
+            merged_text += " " + candidate_line
             scored_match = _SCORED_SUFFIX_RE.search(merged_text)
 
-        if scored_match:
+        if scored_match and not hit_another_id:
             anchor_line = _next_non_blank(lines, end_line + 1)
             if anchor_line is not None and lines[anchor_line].strip() == _ANCHOR_SECTION:
                 title = merged_text[: scored_match.start()].strip()
