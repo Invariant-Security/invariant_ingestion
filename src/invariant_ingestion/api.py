@@ -19,9 +19,10 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from invariant_ingestion import collector, extractor, normalizer, source
+from invariant_ingestion import collector, extractor, internal_auth, normalizer, source
 
 app = FastAPI(title="Invariant Ingestion")
+internal_auth.install(app)
 
 
 @app.get("/healthz")
