@@ -1,11 +1,22 @@
 # Net-new capacidade de CI, ver o mesmo comentário em invariant_api's
 # publish-image.yml -- publica a imagem que docker-compose.appliance.yml
 # referencia via `image:`.
+#
+# Dois modos:
+#  - push de tag v*: tags da versão e `latest` (comportamento original).
+#  - workflow_run do `ci` verde em dev/main: uma imagem por commit,
+#    <branch>-<sha>, para o k8s puxar por digest. Nunca `latest`.
+# Atenção: o GitHub usa a versão DESTE arquivo na branch padrão (main) para
+# workflow_run; esse gatilho só vale depois de chegar ao main.
 name: publish-image
 
 on:
   push:
     tags: ["v*"]
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [dev, main]
 
 permissions:
   contents: read
@@ -14,17 +25,44 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'push' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tags
+        id: tags
+        env:
+          IMG: ghcr.io/invariant-security/invariant-ingestion
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          {
+            echo "list<<EOT"
+            if [ "$EVENT" = workflow_run ]; then
+              echo "$IMG:$HEAD_BRANCH-$HEAD_SHA"
+            else
+              echo "$IMG:$REF_NAME"
+              echo "$IMG:latest"
+            fi
+            echo "EOT"
+          } >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v6
+        id: build
         with:
           context: .
           push: true
-          tags: |
-            ghcr.io/invariant-security/invariant-ingestion:${{ github.ref_name }}
-            ghcr.io/invariant-security/invariant-ingestion:latest
+          tags: ${{ steps.tags.outputs.list }}
+      - name: Resumo
+        run: echo "ghcr.io/invariant-security/invariant-ingestion@${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"

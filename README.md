@@ -30,3 +30,9 @@ pytest tests/ -q                          # unit tests, no network needed
 pytest tests/ -q -m integration           # hits real cisecurity.org
 uvicorn invariant_ingestion.api:app --reload
 ```
+
+## Locked dependencies
+
+`requirements.lock` (hashed) is what the image and CI install; `pyproject.toml` keeps the loose ranges.
+Regenerate (add/bump a dep): in `python:3.12.14-slim@<digest>`, `pip install pip-tools && pip-compile --generate-hashes --strip-extras --allow-unsafe -o requirements.lock` with the deps from `pyproject.toml` as input.
+Bump the base: `docker buildx imagetools inspect python:3.12.14-slim` (or the new tag) → put the index `Digest:` in the Dockerfile `ARG BASE`, then rebuild and run `pip check`.
