@@ -18,9 +18,11 @@ dependencies = [
 # maintenance cost.
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-cov", "httpx2"]
+dev = ["pytest", "pytest-cov", "pytest-timeout", "httpx2"]
 
 [tool.pytest.ini_options]
+timeout = 300
+faulthandler_timeout = 120
 markers = [
     "integration: hits a real external service (cisecurity.org) instead of using mocks/fixtures",
 ]
