@@ -13,10 +13,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
     name: test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
@@ -25,5 +30,5 @@ jobs:
       # Mesmo lock da imagem (Dockerfile); só as ferramentas de teste
       # (extra `dev`) continuam sem pin.
       - run: pip install --require-hashes --no-deps -r requirements.lock
-      - run: pip install --no-deps -e . && pip install pytest pytest-cov httpx2
+      - run: pip install --no-deps -e . && pip install pytest pytest-cov pytest-timeout httpx2
       - run: pytest tests/ -q -m "not integration"
