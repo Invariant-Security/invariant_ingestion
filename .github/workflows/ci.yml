@@ -32,3 +32,11 @@ jobs:
       - run: pip install --require-hashes --no-deps -r requirements.lock
       - run: pip install --no-deps -e . && pip install pytest pytest-cov pytest-timeout httpx2
       - run: pytest tests/ -q -m "not integration"
+      # INV-15: a imagem do PR não pode ter CRITICAL com correção publicada.
+      # Trivy fixado por digest (0.58.2); --ignore-unfixed para não travar em
+      # CVE sem pacote corrigido na base.
+      - run: docker build -t ingestion-ci .
+      - run: >-
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
+          aquasec/trivy@sha256:665030f4d33a82c1e8d9d5e0453365842236723c1ee5cc3becca698268e66a56
+          image --exit-code 1 --severity CRITICAL --ignore-unfixed --no-progress ingestion-ci
